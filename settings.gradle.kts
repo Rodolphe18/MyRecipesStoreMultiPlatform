@@ -18,3 +18,4 @@ rootProject.name = "MyRecipesStoreKmp"
 include(":androidApp")
 include(":shared")
 include(":core:model")
+include(":core:common")
