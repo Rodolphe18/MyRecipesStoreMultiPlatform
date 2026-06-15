@@ -22,6 +22,7 @@ koin = "4.0.0"
 ktor = "3.0.3"
 room = "2.7.2"
 androidxDataStore = "1.1.1"
+okio = "3.9.1"
 napier = "2.7.1"
 
 # AndroidX (android source set only)
@@ -63,9 +64,10 @@ room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version = "2.5.0" }
 
-# DataStore (preferences, KMP)
-androidx-datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version.ref = "androidxDataStore" }
+# DataStore (typed, KMP via Okio)
 androidx-datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "androidxDataStore" }
+androidx-datastore-core-okio = { module = "androidx.datastore:datastore-core-okio", version.ref = "androidxDataStore" }
+okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 
 # Logging (multiplatform)
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
