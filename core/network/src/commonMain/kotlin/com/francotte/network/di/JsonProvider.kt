@@ -1,0 +1,33 @@
+package com.francotte.network.di
+
+import com.francotte.network.model.NetworkAbstractCategory
+import com.francotte.network.model.NetworkAbstractRecipe
+import com.francotte.network.model.NetworkCategory
+import com.francotte.network.model.NetworkLightCategory
+import com.francotte.network.model.NetworkLightRecipe
+import com.francotte.network.model.NetworkRecipe
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.polymorphic
+import kotlinx.serialization.modules.subclass
+
+fun provideJson(): Json =
+    Json {
+        serializersModule =
+            SerializersModule {
+                polymorphic(NetworkAbstractRecipe::class) {
+                    subclass(NetworkRecipe::class, NetworkRecipe.serializer())
+                    subclass(NetworkLightRecipe::class, NetworkLightRecipe.serializer())
+                }
+                polymorphic(NetworkAbstractCategory::class) {
+                    subclass(NetworkCategory::class, NetworkCategory.serializer())
+                    subclass(NetworkLightCategory::class, NetworkLightCategory.serializer())
+                }
+            }
+        ignoreUnknownKeys = true
+        isLenient = true
+        prettyPrint = false
+        encodeDefaults = true
+        allowStructuredMapKeys = true
+        coerceInputValues = true
+    }
