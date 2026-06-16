@@ -6,6 +6,7 @@ ksp = "2.3.9"
 compose = "1.5.4"
 compose-material3 = "1.1.2"
 composeMultiplatform = "1.8.2"
+navigationCompose = "2.8.0-alpha13"
 androidx-activityCompose = "1.10.1"
 
 # Android SDK levels
@@ -77,6 +78,7 @@ okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 
 # Logging (multiplatform)
 napier = { module = "io.github.aakira:napier", version.ref = "napier" }
+navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 
 # AndroidX
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
