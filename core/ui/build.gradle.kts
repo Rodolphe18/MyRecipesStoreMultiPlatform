@@ -25,29 +25,24 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(projects.core.model)
+            api(projects.core.designsystem)
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
+            implementation(compose.materialIconsExtended)
             implementation(compose.ui)
             implementation(compose.components.resources)
-            implementation(libs.coil3.compose)
-            implementation(libs.coil3.network.ktor)
-        }
-        androidMain.dependencies {
-            implementation(libs.androidx.activity.compose)
-            implementation(libs.androidx.core.ktx)
-            implementation(libs.androidx.lifecycle.runtime.compose)
         }
     }
 }
 
 compose.resources {
     publicResClass = true
-    packageOfResClass = "com.francotte.designsystem.resources"
+    packageOfResClass = "com.francotte.ui.resources"
 }
 
 android {
-    namespace = "com.francotte.designsystem"
+    namespace = "com.francotte.ui"
     compileSdk = libs.versions.compileSdk.get().toInt()
     defaultConfig {
         minSdk = libs.versions.minSdk.get().toInt()
