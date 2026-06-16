@@ -13,7 +13,6 @@ import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
-import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpHeaders
 
 class FavoriteApi(
@@ -58,7 +57,7 @@ class FavoriteApi(
         title: String,
         instructions: String,
         ingredients: String,
-    ): HttpResponse =
+    ) {
         client.post("${baseUrl}users/recipes") {
             header(HttpHeaders.Authorization, token)
             setBody(
@@ -72,6 +71,7 @@ class FavoriteApi(
                 ),
             )
         }
+    }
 
     suspend fun updateRecipe(
         token: String,
@@ -80,7 +80,7 @@ class FavoriteApi(
         title: String,
         instructions: String,
         ingredients: String,
-    ): HttpResponse =
+    ) {
         client.put("${baseUrl}users/recipes/$recipeId") {
             header(HttpHeaders.Authorization, token)
             setBody(
@@ -94,4 +94,5 @@ class FavoriteApi(
                 ),
             )
         }
+    }
 }
