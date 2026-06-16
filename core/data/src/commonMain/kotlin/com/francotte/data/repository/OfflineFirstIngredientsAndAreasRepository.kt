@@ -13,7 +13,7 @@ import com.francotte.model.mapToLikeableLightRecipes
 import com.francotte.network.api.RecipeApi
 import com.francotte.network.model.NetworkIngredient
 import com.francotte.network.utils.safeNetworkCall
-import kotlinx.coroutines.Dispatchers
+import com.francotte.common.di.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
@@ -39,15 +39,15 @@ class OfflineFirstIngredientsAndAreasRepositoryImpl(
         areasDao.observeALlAreas().map { areas -> areas.map { it.asExternalModel().name } }
 
     override suspend fun refreshAllIngredients(force: Boolean): String? {
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val lastUpdate = ingredientDao.getLastUpdatedForIngredients()
         val ttl = 3.days
         if (!force && lastUpdate != null) {
             val age = now - lastUpdate
-            if (age < ttl) return null
+            if (age < ttl.inWholeMilliseconds) return null
         }
 
-        val networkIngredients = safeNetworkCall(Dispatchers.IO) {
+        val networkIngredients = safeNetworkCall(ioDispatcher) {
             recipeApi.getAllIngredients().ingredients
         }
         val ingredients = when (networkIngredients) {
@@ -64,14 +64,14 @@ class OfflineFirstIngredientsAndAreasRepositoryImpl(
     }
 
     override suspend fun refreshAllAreas(force: Boolean): String? {
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val lastUpdate = ingredientDao.getLastUpdatedForIngredients()
         val ttl = 3.days
         if (!force && lastUpdate != null) {
             val age = now - lastUpdate
-            if (age < ttl) return null
+            if (age < ttl.inWholeMilliseconds) return null
         }
-        val networkAreas = safeNetworkCall(Dispatchers.IO) {
+        val networkAreas = safeNetworkCall(ioDispatcher) {
             recipeApi.getAllAreas().areas
         }
 

@@ -17,7 +17,7 @@ import com.francotte.network.model.NetworkLightRecipe
 import com.francotte.network.model.NetworkRecipe
 import com.francotte.network.model.asExternalModel as networkAsExternalModel
 import com.francotte.network.utils.safeNetworkCall
-import kotlinx.coroutines.Dispatchers
+import com.francotte.common.di.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -31,11 +31,11 @@ class OfflineFirstHomeRepository(
 ) : HomeRepository {
     override suspend fun refreshLatestRecipes(force: Boolean): String? {
         val lastUpdatedResult = fullRecipeDao.getLastUpdatedForLatest()
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val ttl = 3.days
-        val shouldRefresh = force || lastUpdatedResult == null || (now - lastUpdatedResult) > ttl
+        val shouldRefresh = force || lastUpdatedResult == null || (now - lastUpdatedResult) > ttl.inWholeMilliseconds
         if (!shouldRefresh) return null
-        val networkResult = safeNetworkCall(Dispatchers.IO) { network.getLatestMeals() }
+        val networkResult = safeNetworkCall(ioDispatcher) { network.getLatestMeals() }
         val response = when (networkResult) {
             is DataResult.Success -> networkResult.data
             is DataResult.Failure -> return networkResult.error.userMessage()
@@ -67,14 +67,14 @@ class OfflineFirstHomeRepository(
     }
 
     override suspend fun refreshRecipesListByArea(area: String, force: Boolean): String? {
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val ttl = 3.days
 
         val lastUpdated = lightRecipeDao.getLastUpdatedForArea(area)
-        val shouldRefresh = force || lastUpdated == null || (now - lastUpdated) > ttl
+        val shouldRefresh = force || lastUpdated == null || (now - lastUpdated) > ttl.inWholeMilliseconds
         if (!shouldRefresh) return null
 
-        val result = safeNetworkCall(Dispatchers.IO) {
+        val result = safeNetworkCall(ioDispatcher) {
             network.getRecipesListByArea(area).meals.filterIsInstance<NetworkLightRecipe>()
         }
         val networkRecipes = when (result) {
@@ -100,11 +100,11 @@ class OfflineFirstHomeRepository(
 
     override suspend fun refreshRecipesByCategory(category: String, force: Boolean): Boolean {
         val lastUpdated = lightRecipeDao.getLastUpdatedForCategory(category)
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val ttl = 3.days
-        val shouldRefresh = force || lastUpdated == null || (now - lastUpdated) > ttl
+        val shouldRefresh = force || lastUpdated == null || (now - lastUpdated) > ttl.inWholeMilliseconds
         if (!shouldRefresh) return false
-        val networkData = safeNetworkCall(Dispatchers.IO) {
+        val networkData = safeNetworkCall(ioDispatcher) {
             network.getRecipesListByCategory(category).meals.filterIsInstance<NetworkLightRecipe>()
         }
 
@@ -127,14 +127,14 @@ class OfflineFirstHomeRepository(
     }
 
     override suspend fun getRecipesByCategory(category: String): DataResult<List<LightRecipe>> =
-        safeNetworkCall(Dispatchers.IO) {
+        safeNetworkCall(ioDispatcher) {
             network.getRecipesListByCategory(category).meals
                 .filterIsInstance<NetworkLightRecipe>()
                 .map { it.networkAsExternalModel() }
         }
 
     override suspend fun getRecipesByArea(area: String): DataResult<List<LightRecipe>> =
-        safeNetworkCall(Dispatchers.IO) {
+        safeNetworkCall(ioDispatcher) {
             network.getRecipesListByArea(area).meals
                 .filterIsInstance<NetworkLightRecipe>()
                 .map { it.networkAsExternalModel() }
@@ -142,7 +142,7 @@ class OfflineFirstHomeRepository(
 
     override suspend fun getRecipesByIngredients(ingredients: List<String>): DataResult<List<LightRecipe>> {
         val ingredient = ingredients.firstOrNull() ?: return DataResult.Success(emptyList())
-        return safeNetworkCall(Dispatchers.IO) {
+        return safeNetworkCall(ioDispatcher) {
             network.getRecipesListByMultiIngredients(ingredient).meals
                 .filterIsInstance<NetworkLightRecipe>()
                 .map { it.networkAsExternalModel() }
@@ -155,11 +155,11 @@ class OfflineFirstHomeRepository(
     ): String? {
         val ingredient = ingredients.firstOrNull() ?: return null
         val lastUpdated = lightRecipeDao.getLastUpdatedForIngredientRecipes(ingredient)
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val ttl = 3.days
-        val shouldRefresh = force || lastUpdated == null || (now - lastUpdated) > ttl
+        val shouldRefresh = force || lastUpdated == null || (now - lastUpdated) > ttl.inWholeMilliseconds
         if (!shouldRefresh) return null
-        val networkData = safeNetworkCall(Dispatchers.IO) {
+        val networkData = safeNetworkCall(ioDispatcher) {
             network.getRecipesListByMultiIngredients(ingredient).meals.filterIsInstance<NetworkLightRecipe>()
         }
         val networkRecipes = when (networkData) {

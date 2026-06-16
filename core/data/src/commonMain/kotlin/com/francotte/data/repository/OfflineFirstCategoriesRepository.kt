@@ -10,7 +10,7 @@ import com.francotte.model.Category
 import com.francotte.network.api.RecipeApi
 import com.francotte.network.model.NetworkCategory
 import com.francotte.network.utils.safeNetworkCall
-import kotlinx.coroutines.Dispatchers
+import com.francotte.common.di.ioDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.datetime.Clock
@@ -26,16 +26,16 @@ class OfflineFirstCategoriesRepositoryImpl(
 
     override suspend fun refreshAllMealCategories(force: Boolean): String? {
         val lastUpdate = dao.getLastUpdateForCategories()
-        val now = Clock.System.now()
+        val now = Clock.System.now().toEpochMilliseconds()
         val timeToLive = 7.days
 
         if (!force && lastUpdate != null) {
             val age = now - lastUpdate
-            if (age < timeToLive) return null
+            if (age < timeToLive.inWholeMilliseconds) return null
         }
 
         val networkCategories =
-            safeNetworkCall(Dispatchers.IO) { api.getAllMealCategories().categories }
+            safeNetworkCall(ioDispatcher) { api.getAllMealCategories().categories }
 
         val categories = when (networkCategories) {
             is DataResult.Failure -> return networkCategories.error.userMessage()

@@ -1,30 +1,13 @@
 package com.francotte.database.model
 
-import androidx.room.ColumnInfo
-import androidx.room.Entity
-import androidx.room.Fts4
-import androidx.room.PrimaryKey
-import kotlinx.datetime.Instant
-
-@Entity(tableName = "light_recipe_entity")
 data class LightRecipeEntity(
-    @PrimaryKey val idMeal: String,
+    val idMeal: String,
     val strMeal: String,
     val strMealThumb: String,
 )
 
-@Entity(tableName = "recipesFts")
-@Fts4
-data class RecipeFtsEntity(
-    @ColumnInfo(name = "idMeal") val idMeal: String,
-    @ColumnInfo(name = "name") val name: String,
-)
-
-fun LightRecipeEntity.asFtsEntity() = RecipeFtsEntity(idMeal = idMeal, name = strMeal)
-
-@Entity(tableName = "full_recipe_entity")
 data class FullRecipeEntity(
-    @PrimaryKey val idMeal: String,
+    val idMeal: String,
     val strMeal: String,
     val strMealAlternate: String?,
     val strCategory: String,
@@ -78,6 +61,6 @@ data class FullRecipeEntity(
     val strImageSource: String?,
     val strCreativeCommonsConfirmed: String?,
     val dateModified: String?,
-    var savedTimestamp: Instant? = null,
+    var savedTimestamp: Long? = null,
     var isLatest: Boolean = false,
 )

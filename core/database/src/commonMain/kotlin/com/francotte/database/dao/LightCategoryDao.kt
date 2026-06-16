@@ -1,27 +1,36 @@
 package com.francotte.database.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Upsert
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
 import com.francotte.database.model.LightCategoryEntity
+import com.francotte.database.sql.FoodDb
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
-@Dao
-interface LightCategoryDao {
-    @Query("SELECT * FROM light_category_entity")
-    fun getAllLightCategories(): Flow<List<LightCategoryEntity>>
+class LightCategoryDao(
+    private val db: FoodDb,
+    private val dispatcher: CoroutineDispatcher,
+) {
+    private val q get() = db.categoryQueries
 
-    @Query("SELECT * FROM light_category_entity WHERE strCategory = :categoryName")
-    suspend fun getLightCategoryByName(categoryName: String): LightCategoryEntity?
+    fun getAllLightCategories(): Flow<List<LightCategoryEntity>> =
+        q.getAllLightCategories().asFlow().mapToList(dispatcher).map { rows -> rows.map { LightCategoryEntity(it) } }
 
-    @Upsert
-    suspend fun upsertAllLightCategories(categories: List<LightCategoryEntity>)
+    suspend fun getLightCategoryByName(categoryName: String): LightCategoryEntity? = withContext(dispatcher) {
+        q.getLightCategoryByName(categoryName).executeAsOneOrNull()?.let { LightCategoryEntity(it) }
+    }
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLightCategory(category: LightCategoryEntity)
+    suspend fun upsertAllLightCategories(categories: List<LightCategoryEntity>) = withContext(dispatcher) {
+        db.transaction {
+            categories.forEach { q.insertLightCategoryReplace(it.strCategory) }
+        }
+    }
 
-    @Query("DELETE FROM light_category_entity")
-    suspend fun clearAll()
+    suspend fun insertLightCategory(category: LightCategoryEntity) = withContext(dispatcher) {
+        q.insertLightCategoryReplace(category.strCategory)
+    }
+
+    suspend fun clearAll() = withContext(dispatcher) { q.clearLightCategories() }
 }

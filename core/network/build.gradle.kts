@@ -17,6 +17,10 @@ kotlin {
         }
     }
 
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
     sourceSets {
         commonMain.dependencies {
             api(projects.core.model)
@@ -36,6 +40,9 @@ kotlin {
             implementation(libs.koin.android)
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.core.ktx)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
         }
     }
 }

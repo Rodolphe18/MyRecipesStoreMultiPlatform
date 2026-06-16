@@ -1,152 +1,172 @@
 package com.francotte.database.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Transaction
-import androidx.room.Upsert
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOne
 import com.francotte.database.crossrefs.AreaWithRecipes
 import com.francotte.database.crossrefs.CategoryWithRecipes
 import com.francotte.database.crossrefs.IngredientWithRecipes
 import com.francotte.database.crossrefs.RecipeAreaCrossRef
 import com.francotte.database.crossrefs.RecipeCategoryCrossRef
 import com.francotte.database.crossrefs.RecipeIngredientCrossRef
+import com.francotte.database.internal.toEntity
 import com.francotte.database.model.AreaEntity
+import com.francotte.database.model.IngredientEntity
 import com.francotte.database.model.LightCategoryEntity
 import com.francotte.database.model.LightRecipeEntity
+import com.francotte.database.sql.FoodDb
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.Instant
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
-@Dao
-interface LightRecipeDao {
+class LightRecipeDao(
+    private val db: FoodDb,
+    private val dispatcher: CoroutineDispatcher,
+) {
+    private val lr get() = db.lightRecipeQueries
+    private val xref get() = db.crossRefQueries
+    private val areas get() = db.areaQueries
+    private val cats get() = db.categoryQueries
 
     // ------- AREA ---------
-    @Transaction
-    @Query("SELECT * FROM area WHERE strArea = :area")
-    fun observeAreaWithRecipes(area: String): Flow<AreaWithRecipes?>
+    fun observeAreaWithRecipes(area: String): Flow<AreaWithRecipes?> =
+        xref.recipesForArea(area).asFlow().mapToList(dispatcher)
+            .map { rows -> AreaWithRecipes(AreaEntity(area), rows.map { it.toEntity() }) }
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun upsertArea(area: AreaEntity)
+    suspend fun upsertArea(area: AreaEntity) = withContext(dispatcher) {
+        areas.insertArea(area.strArea, area.savedTimeStamp)
+    }
 
-    @Query("SELECT MAX(savedTimestamp) FROM recipe_area_xref WHERE strArea = :area")
-    suspend fun getLastUpdatedForArea(area: String): Instant?
+    suspend fun getLastUpdatedForArea(area: String): Long? = withContext(dispatcher) {
+        xref.getLastUpdatedForArea(area).executeAsOne().lastUpdated
+    }
 
-    @Query("DELETE FROM recipe_area_xref WHERE strArea = :area")
-    suspend fun clearAreaRefs(area: String)
+    suspend fun clearAreaRefs(area: String) = withContext(dispatcher) { xref.clearAreaRefs(area) }
 
-    @Upsert
-    suspend fun upsertAreaRefs(refs: List<RecipeAreaCrossRef>)
+    suspend fun upsertAreaRefs(refs: List<RecipeAreaCrossRef>) = withContext(dispatcher) {
+        db.transaction { refs.forEach { xref.upsertAreaRef(it.strArea, it.idMeal, it.savedTimestamp) } }
+    }
 
-    @Transaction
     suspend fun upsertAreaWithRecipes(
         area: String,
         recipes: List<LightRecipeEntity>,
         refs: List<RecipeAreaCrossRef>,
         clearBefore: Boolean,
-    ) {
-        upsertArea(AreaEntity(strArea = area))
-        upsertLightRecipes(recipes)
-        if (clearBefore) clearAreaRefs(area)
-        upsertAreaRefs(refs)
+    ) = withContext(dispatcher) {
+        db.transaction {
+            areas.insertArea(area, null)
+            recipes.forEach { lr.insertLightRecipe(it.idMeal, it.strMeal, it.strMealThumb) }
+            if (clearBefore) xref.clearAreaRefs(area)
+            refs.forEach { xref.upsertAreaRef(it.strArea, it.idMeal, it.savedTimestamp) }
+        }
     }
 
     // ------- CATEGORY ---------
-    @Transaction
-    @Query("SELECT * FROM light_category_entity WHERE strCategory = :category")
-    fun observeCategoryWithRecipes(category: String): Flow<CategoryWithRecipes?>
+    fun observeCategoryWithRecipes(category: String): Flow<CategoryWithRecipes?> =
+        xref.recipesForCategory(category).asFlow().mapToList(dispatcher)
+            .map { rows -> CategoryWithRecipes(LightCategoryEntity(category), rows.map { it.toEntity() }) }
 
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun upsertCategory(category: LightCategoryEntity): Long
+    suspend fun upsertCategory(category: LightCategoryEntity): Long = withContext(dispatcher) {
+        cats.insertLightCategoryIgnore(category.strCategory)
+        1L
+    }
 
-    @Upsert
-    suspend fun upsertCategoryRefs(refs: List<RecipeCategoryCrossRef>)
+    suspend fun upsertCategoryRefs(refs: List<RecipeCategoryCrossRef>) = withContext(dispatcher) {
+        db.transaction { refs.forEach { xref.upsertCategoryRef(it.strCategory, it.idMeal, it.savedTimestamp) } }
+    }
 
-    @Query("DELETE FROM recipe_category_xref WHERE strCategory = :category")
-    suspend fun clearCategoryRefs(category: String)
+    suspend fun clearCategoryRefs(category: String) = withContext(dispatcher) { xref.clearCategoryRefs(category) }
 
-    @Transaction
     suspend fun upsertCategoryWithRecipes(
         category: String,
         recipes: List<LightRecipeEntity>,
         refs: List<RecipeCategoryCrossRef>,
         clearBefore: Boolean,
-    ): Boolean {
-        upsertCategory(LightCategoryEntity(strCategory = category))
-        upsertLightRecipes(recipes)
-        if (clearBefore) clearCategoryRefs(category)
-        upsertCategoryRefs(refs)
-        return true
+    ): Boolean = withContext(dispatcher) {
+        db.transaction {
+            cats.insertLightCategoryIgnore(category)
+            recipes.forEach { lr.insertLightRecipe(it.idMeal, it.strMeal, it.strMealThumb) }
+            if (clearBefore) xref.clearCategoryRefs(category)
+            refs.forEach { xref.upsertCategoryRef(it.strCategory, it.idMeal, it.savedTimestamp) }
+        }
+        true
     }
 
     // ----- INGREDIENTS ---------
+    fun observeIngredientWithRecipes(ingredientName: String): Flow<IngredientWithRecipes> =
+        xref.recipesForIngredient(ingredientName).asFlow().mapToList(dispatcher)
+            .map { rows ->
+                IngredientWithRecipes(
+                    IngredientEntity(name = ingredientName, description = "", imageUrl = ""),
+                    rows.map { it.toEntity() },
+                )
+            }
 
-    @Transaction
-    @Query("SELECT * FROM ingredient WHERE name = :ingredientName")
-    fun observeIngredientWithRecipes(ingredientName: String): Flow<IngredientWithRecipes>
+    suspend fun getLastUpdatedForIngredientRecipes(ingredientName: String): Long? = withContext(dispatcher) {
+        xref.getLastUpdatedForIngredientRecipes(ingredientName).executeAsOne().lastUpdated
+    }
 
-    @Query("SELECT MAX(savedTimestamp) FROM recipe_ingredient_xref WHERE ingredientName = :ingredientName")
-    suspend fun getLastUpdatedForIngredientRecipes(ingredientName: String): Instant?
+    suspend fun clearIngredientRefs(ingredientName: String) = withContext(dispatcher) {
+        xref.clearIngredientRefs(ingredientName)
+    }
 
-    @Query("DELETE FROM recipe_ingredient_xref WHERE ingredientName = :ingredientName")
-    suspend fun clearIngredientRefs(ingredientName: String)
+    suspend fun upsertRecipes(recipes: List<LightRecipeEntity>) = upsertLightRecipes(recipes)
 
-    @Upsert
-    suspend fun upsertRecipes(recipes: List<LightRecipeEntity>)
+    suspend fun upsertIngredientRefs(refs: List<RecipeIngredientCrossRef>) = withContext(dispatcher) {
+        db.transaction { refs.forEach { xref.upsertIngredientRef(it.ingredientName, it.idMeal, it.savedTimestamp) } }
+    }
 
-    @Upsert
-    suspend fun upsertIngredientRefs(refs: List<RecipeIngredientCrossRef>)
-
-    @Transaction
     suspend fun upsertIngredientWithRecipes(
         ingredientName: String,
         recipes: List<LightRecipeEntity>,
         refs: List<RecipeIngredientCrossRef>,
         clearBefore: Boolean,
-    ) {
-        upsertRecipes(recipes)
-        if (clearBefore) clearIngredientRefs(ingredientName)
-        upsertIngredientRefs(refs)
+    ) = withContext(dispatcher) {
+        db.transaction {
+            recipes.forEach { lr.insertLightRecipe(it.idMeal, it.strMeal, it.strMealThumb) }
+            if (clearBefore) xref.clearIngredientRefs(ingredientName)
+            refs.forEach { xref.upsertIngredientRef(it.ingredientName, it.idMeal, it.savedTimestamp) }
+        }
     }
 
     // --- RECIPES ---
-    @Upsert
-    suspend fun upsertLightRecipes(recipes: List<LightRecipeEntity>)
+    suspend fun upsertLightRecipes(recipes: List<LightRecipeEntity>) = withContext(dispatcher) {
+        db.transaction { recipes.forEach { lr.insertLightRecipe(it.idMeal, it.strMeal, it.strMealThumb) } }
+    }
 
-    // LAST UPDATES
+    suspend fun getLastUpdatedForCategory(category: String): Long? = withContext(dispatcher) {
+        xref.getLastUpdatedForCategory(category).executeAsOne().lastUpdated
+    }
 
-    @Query("SELECT MAX(savedTimestamp) FROM recipe_category_xref WHERE strCategory = :category")
-    suspend fun getLastUpdatedForCategory(category: String): Instant?
+    suspend fun getLightRecipeById(id: String): LightRecipeEntity? = withContext(dispatcher) {
+        lr.getLightRecipeById(id).executeAsOneOrNull()?.toEntity()
+    }
 
-    @Query("SELECT * FROM light_recipe_entity WHERE idMeal = :id")
-    suspend fun getLightRecipeById(id: String): LightRecipeEntity?
+    suspend fun upsertAllLightRecipes(recipes: List<LightRecipeEntity>) = upsertLightRecipes(recipes)
 
-    @Upsert
-    suspend fun upsertAllLightRecipes(recipes: List<LightRecipeEntity>)
+    suspend fun insertLightRecipe(recipe: LightRecipeEntity) = withContext(dispatcher) {
+        lr.insertLightRecipe(recipe.idMeal, recipe.strMeal, recipe.strMealThumb)
+    }
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertLightRecipe(recipe: LightRecipeEntity)
+    suspend fun clearAll() = withContext(dispatcher) { lr.clearLightRecipes() }
 
-    @Query("DELETE FROM light_recipe_entity")
-    suspend fun clearAll()
+    fun observeByIds(useFilterIds: Boolean, filterIds: Set<String>): Flow<List<LightRecipeEntity>> =
+        if (!useFilterIds || filterIds.isEmpty()) {
+            flowOf(emptyList())
+        } else {
+            lr.selectByIds(filterIds).asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
+        }
 
-    // ---- FTS --------
+    suspend fun getAllOnce(): List<LightRecipeEntity> = withContext(dispatcher) {
+        lr.getAllLightRecipes().executeAsList().map { it.toEntity() }
+    }
 
-    @Query(
-        """
-        SELECT * FROM light_recipe_entity
-        WHERE CASE WHEN :useFilterIds
-            THEN idMeal IN (:filterIds)
-            ELSE 0
-        END
-    """,
-    )
-    fun observeByIds(
-        useFilterIds: Boolean,
-        filterIds: Set<String>,
-    ): Flow<List<LightRecipeEntity>>
+    // ---- SEARCH (LIKE-based, multiplatform) ----
+    fun searchRecipesByName(query: String, limit: Int): Flow<List<LightRecipeEntity>> =
+        lr.searchRecipesByName(query, limit.toLong()).asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
 
-    // pour populate FTS (one-shot)
-    @Query("SELECT * FROM light_recipe_entity")
-    suspend fun getAllOnce(): List<LightRecipeEntity>
+    fun observeRecipeCount(): Flow<Int> =
+        lr.countLightRecipes().asFlow().mapToOne(dispatcher).map { it.toInt() }
 }

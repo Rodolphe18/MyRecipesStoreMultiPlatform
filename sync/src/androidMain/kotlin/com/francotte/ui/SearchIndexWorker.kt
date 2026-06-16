@@ -1,0 +1,109 @@
+package com.francotte.ui
+
+import android.content.Context
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import com.francotte.common.utils.DataResult
+import com.francotte.data.mapper.dto.asEntity
+import com.francotte.database.dao.LightRecipeDao
+import com.francotte.database.dao.SearchIndexStateDao
+import com.francotte.database.model.LightRecipeEntity
+import com.francotte.database.model.SearchIndexCategoryStateEntity
+import com.francotte.network.api.RecipeApi
+import com.francotte.network.model.NetworkLightRecipe
+import com.francotte.network.utils.safeNetworkCall
+import kotlinx.coroutines.Dispatchers
+import kotlinx.datetime.Clock
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
+import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.days
+
+class SearchIndexWorker(ctx: Context, params: WorkerParameters) :
+    CoroutineWorker(ctx, params), KoinComponent {
+
+    private val api: RecipeApi by inject()
+    private val stateDao: SearchIndexStateDao by inject()
+    private val lightRecipeDao: LightRecipeDao by inject()
+
+    override suspend fun doWork(): Result {
+        val maxAttempts = 3
+        if (runAttemptCount >= maxAttempts) return Result.failure()
+
+        return try {
+            val now = Clock.System.now().toEpochMilliseconds()
+            val ttl = 21.days
+            val staleBefore = now - ttl.inWholeMilliseconds
+            val batchSize = 5
+
+            val categories = stateDao.getCategoriesToIndex(staleBefore = staleBefore, limit = batchSize)
+            if (categories.isEmpty()) return Result.retry()
+
+            val allLightRecipes = mutableListOf<LightRecipeEntity>()
+            val successfullyIndexed = mutableListOf<String>()
+
+            for (category in categories) {
+                val networkResult = safeNetworkCall(Dispatchers.IO) {
+                    api.getRecipesListByCategory(category).meals.filterIsInstance<NetworkLightRecipe>()
+                }
+                when (networkResult) {
+                    is DataResult.Failure -> return Result.retry()
+                    is DataResult.Success -> {
+                        val entities = networkResult.data.map { it.asEntity() }
+                        allLightRecipes += entities
+                        successfullyIndexed += category
+                    }
+                }
+            }
+            if (allLightRecipes.isNotEmpty()) {
+                lightRecipeDao.upsertLightRecipes(allLightRecipes)
+            }
+
+            if (successfullyIndexed.isNotEmpty()) {
+                stateDao.upsertStates(
+                    successfullyIndexed.map { category ->
+                        SearchIndexCategoryStateEntity(strCategory = category, lastIndexedAt = now)
+                    },
+                )
+            }
+
+            Result.success()
+        } catch (t: Throwable) {
+            Result.retry()
+        }
+    }
+}
+
+object SearchIndexScheduler {
+    private const val UNIQUE_CHAIN = "search-index-chain"
+
+    fun enqueueIndexChain(context: Context, runs: Int = 3) {
+        val appCtx = context.applicationContext
+
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        fun newRequest() =
+            OneTimeWorkRequestBuilder<SearchIndexWorker>()
+                .setConstraints(constraints)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10_000, TimeUnit.MILLISECONDS)
+                .addTag("search-index")
+                .build()
+
+        var continuation = WorkManager.getInstance(appCtx)
+            .beginUniqueWork(UNIQUE_CHAIN, ExistingWorkPolicy.KEEP, newRequest())
+
+        repeat(runs - 1) {
+            continuation = continuation.then(newRequest())
+        }
+
+        continuation.enqueue()
+    }
+}

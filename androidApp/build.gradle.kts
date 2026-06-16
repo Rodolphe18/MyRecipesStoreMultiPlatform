@@ -42,6 +42,8 @@ kotlin {
 dependencies {
     implementation(projects.shared)
     implementation(projects.core.domain)
+    implementation(projects.core.auth)
+    implementation(projects.sync)
     implementation(libs.koin.android)
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling.preview)

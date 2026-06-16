@@ -9,5 +9,5 @@ fun NetworkIngredient.asEntity(): IngredientEntity =
         name = strIngredient.orEmpty().trim(),
         description = strDescription ?: "",
         imageUrl = strThumb ?: "",
-        savedTimeStamp = Clock.System.now(),
+        savedTimeStamp = Clock.System.now().toEpochMilliseconds(),
     )

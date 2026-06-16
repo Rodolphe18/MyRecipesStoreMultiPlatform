@@ -1,34 +1,50 @@
 package com.francotte.database.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Upsert
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
+import com.francotte.database.internal.toEntity
 import com.francotte.database.model.CategoryEntity
+import com.francotte.database.sql.FoodDb
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.Instant
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
-@Dao
-interface FullCategoryDao {
-    @Query("SELECT * FROM full_category_entity")
-    fun getAllCategories(): Flow<List<CategoryEntity>>
+class FullCategoryDao(
+    private val db: FoodDb,
+    private val dispatcher: CoroutineDispatcher,
+) {
+    private val q get() = db.categoryQueries
 
-    @Query("SELECT * FROM full_category_entity")
-    suspend fun getAllCategoriesOnce(): List<CategoryEntity>
+    fun getAllCategories(): Flow<List<CategoryEntity>> =
+        q.getAllCategories().asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
 
-    @Query("SELECT * FROM full_category_entity WHERE strCategory = :categoryName")
-    suspend fun getLightCategoryByName(categoryName: String): CategoryEntity?
+    suspend fun getAllCategoriesOnce(): List<CategoryEntity> = withContext(dispatcher) {
+        q.getAllCategoriesOnce().executeAsList().map { it.toEntity() }
+    }
 
-    @Query("SELECT MAX(savedTimestamp) FROM full_category_entity")
-    suspend fun getLastUpdateForCategories(): Instant?
+    suspend fun getLightCategoryByName(categoryName: String): CategoryEntity? = withContext(dispatcher) {
+        q.getFullCategoryByName(categoryName).executeAsOneOrNull()?.toEntity()
+    }
 
-    @Upsert
-    suspend fun upsertAllCategories(categories: List<CategoryEntity>)
+    suspend fun getLastUpdateForCategories(): Long? = withContext(dispatcher) {
+        q.getLastUpdateForCategories().executeAsOne().lastUpdated
+    }
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFullCategories(categories: List<CategoryEntity>)
+    suspend fun upsertAllCategories(categories: List<CategoryEntity>) = withContext(dispatcher) {
+        db.transaction {
+            categories.forEach {
+                q.insertFullCategory(
+                    it.idCategory, it.strCategory, it.strCategoryThumb, it.strCategoryDescription, it.savedTimestamp,
+                )
+            }
+        }
+    }
 
-    @Query("DELETE FROM full_category_entity")
-    suspend fun clearAll()
+    suspend fun insertFullCategories(categories: List<CategoryEntity>) = upsertAllCategories(categories)
+
+    suspend fun clearAll() = withContext(dispatcher) { q.clearFullCategories() }
+
+    fun searchCategoryNames(query: String, limit: Int): Flow<List<String>> =
+        q.searchCategoryNames(query, limit.toLong()).asFlow().mapToList(dispatcher)
 }

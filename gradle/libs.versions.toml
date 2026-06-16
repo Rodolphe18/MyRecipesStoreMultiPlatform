@@ -21,6 +21,7 @@ kotlinxDatetime = "0.6.1"
 koin = "4.0.0"
 ktor = "3.0.3"
 room = "2.7.2"
+sqldelight = "2.0.2"
 androidxDataStore = "1.1.1"
 okio = "3.9.1"
 napier = "2.7.1"
@@ -29,6 +30,7 @@ napier = "2.7.1"
 coreKtx = "1.16.0"
 coil = "2.5.0"
 workRuntime = "2.10.1"
+credentials = "1.5.0"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -55,14 +57,16 @@ koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 # Ktor (network)
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 
-# Room (database, KMP)
-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version = "2.5.0" }
+# SQLDelight (database, KMP)
+sqldelight-runtime = { module = "app.cash.sqldelight:runtime", version.ref = "sqldelight" }
+sqldelight-coroutines = { module = "app.cash.sqldelight:coroutines-extensions", version.ref = "sqldelight" }
+sqldelight-android-driver = { module = "app.cash.sqldelight:android-driver", version.ref = "sqldelight" }
+sqldelight-native-driver = { module = "app.cash.sqldelight:native-driver", version.ref = "sqldelight" }
 
 # DataStore (typed, KMP via Okio)
 androidx-datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "androidxDataStore" }
@@ -76,6 +80,8 @@ napier = { module = "io.github.aakira:napier", version.ref = "napier" }
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntime" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
+androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
+androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
@@ -86,4 +92,4 @@ kotlinCocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = 
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-room = { id = "androidx.room", version.ref = "room" }
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }

@@ -22,9 +22,9 @@ class OfflineFirstFullRecipeRepositoryImpl(
         flow {
             val localRecipe = dao.getFullRecipeById(id.toString()).first()
             val lastUpdated = localRecipe?.savedTimestamp
-            val now = Clock.System.now()
+            val now = Clock.System.now().toEpochMilliseconds()
             val timeToLive = 3.days
-            if (localRecipe == null || lastUpdated == null || lastUpdated < now.minus(timeToLive)) {
+            if (localRecipe == null || lastUpdated == null || lastUpdated < now - timeToLive.inWholeMilliseconds) {
                 try {
                     val networkRecipe = api
                         .getMealDetail(id)

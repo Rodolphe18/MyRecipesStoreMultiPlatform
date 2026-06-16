@@ -10,7 +10,7 @@ kotlin {
         compilations.all {
             compileTaskProvider.configure {
                 compilerOptions {
-                    jvmTarget.set(JvmTarget.JVM_1_8)
+                    jvmTarget.set(JvmTarget.JVM_17)
                 }
             }
         }
@@ -29,7 +29,9 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            //put your multiplatform dependencies here
+            api(projects.core.domain)
+            api(projects.core.auth)
+            api(libs.koin.core)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -44,7 +46,7 @@ android {
         minSdk = 26
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }

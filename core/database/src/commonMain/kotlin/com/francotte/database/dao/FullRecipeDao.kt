@@ -1,62 +1,70 @@
 package com.francotte.database.dao
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.Transaction
-import androidx.room.Upsert
+import app.cash.sqldelight.coroutines.asFlow
+import app.cash.sqldelight.coroutines.mapToList
+import app.cash.sqldelight.coroutines.mapToOneOrNull
+import com.francotte.database.internal.toEntity
+import com.francotte.database.internal.toRow
 import com.francotte.database.model.FullRecipeEntity
+import com.francotte.database.sql.FoodDb
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
-import kotlinx.datetime.Instant
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
-@Dao
-interface FullRecipeDao {
-    @Query("SELECT * FROM full_recipe_entity")
-    fun getAllFullRecipes(): Flow<List<FullRecipeEntity>>
+class FullRecipeDao(
+    private val db: FoodDb,
+    private val dispatcher: CoroutineDispatcher,
+) {
+    private val q get() = db.fullRecipeQueries
 
-    @Query("SELECT * FROM full_recipe_entity WHERE isLatest = 1")
-    fun getLatestFullRecipes(): Flow<List<FullRecipeEntity>>
+    fun getAllFullRecipes(): Flow<List<FullRecipeEntity>> =
+        q.getAllFullRecipes().asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
 
-    @Query("SELECT * FROM full_recipe_entity WHERE isFavorite = 1")
-    fun getAllFavoritesFullRecipes(): Flow<List<FullRecipeEntity>>
+    fun getLatestFullRecipes(): Flow<List<FullRecipeEntity>> =
+        q.getLatestFullRecipes().asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
 
-    @Query("SELECT * FROM full_recipe_entity WHERE idMeal = :id")
-    fun getFullRecipeById(id: String): Flow<FullRecipeEntity?>
+    fun getAllFavoritesFullRecipes(): Flow<List<FullRecipeEntity>> =
+        q.getAllFavoritesFullRecipes().asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
 
-    @Query("SELECT idMeal FROM full_recipe_entity WHERE idMeal IN (:ids)")
-    suspend fun getExistingIds(ids: List<String>): List<String>
+    fun getFullRecipeById(id: String): Flow<FullRecipeEntity?> =
+        q.getFullRecipeById(id).asFlow().mapToOneOrNull(dispatcher).map { it?.toEntity() }
 
-    @Query("SELECT * FROM full_recipe_entity WHERE idMeal IN (:ids)")
-    fun observeFullRecipesByIds(ids: List<String>): Flow<List<FullRecipeEntity>>
+    suspend fun getExistingIds(ids: List<String>): List<String> = withContext(dispatcher) {
+        q.getExistingIds(ids).executeAsList()
+    }
 
-    @Query("SELECT * FROM full_recipe_entity WHERE idMeal IN (:ids)")
-    suspend fun getFullRecipesByIdsSnapshot(ids: List<String>): List<FullRecipeEntity>
+    fun observeFullRecipesByIds(ids: List<String>): Flow<List<FullRecipeEntity>> =
+        q.selectByIds(ids).asFlow().mapToList(dispatcher).map { rows -> rows.map { it.toEntity() } }
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertFullRecipe(recipe: FullRecipeEntity)
+    suspend fun getFullRecipesByIdsSnapshot(ids: List<String>): List<FullRecipeEntity> = withContext(dispatcher) {
+        q.selectByIds(ids).executeAsList().map { it.toEntity() }
+    }
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAllFullRecipes(recipes: List<FullRecipeEntity>)
+    suspend fun insertFullRecipe(recipe: FullRecipeEntity) = withContext(dispatcher) {
+        q.insertFullRecipe(recipe.toRow())
+    }
 
-    @Upsert
-    suspend fun upsertAllFullRecipes(recipes: List<FullRecipeEntity>)
+    suspend fun insertAllFullRecipes(recipes: List<FullRecipeEntity>) = withContext(dispatcher) {
+        db.transaction { recipes.forEach { q.insertFullRecipe(it.toRow()) } }
+    }
 
-    @Query("SELECT MAX(savedTimestamp) FROM full_recipe_entity WHERE isLatest = 1")
-    suspend fun getLastUpdatedForLatest(): Instant?
+    suspend fun upsertAllFullRecipes(recipes: List<FullRecipeEntity>) = insertAllFullRecipes(recipes)
 
-    @Query("DELETE FROM full_recipe_entity WHERE isLatest = 1")
-    suspend fun deleteOldLatestRecipes()
+    suspend fun getLastUpdatedForLatest(): Long? = withContext(dispatcher) {
+        q.getLastUpdatedForLatest().executeAsOne().lastUpdated
+    }
 
-    @Query("DELETE FROM full_recipe_entity WHERE isFavorite = 1")
-    suspend fun deleteAllFavoritesRecipes()
+    suspend fun deleteOldLatestRecipes() = withContext(dispatcher) { q.deleteOldLatestRecipes() }
 
-    @Query("DELETE FROM full_recipe_entity")
-    suspend fun clearAll()
+    suspend fun deleteAllFavoritesRecipes() = withContext(dispatcher) { q.deleteAllFavoritesRecipes() }
 
-    @Transaction
-    suspend fun refreshLatest(recipes: List<FullRecipeEntity>) {
-        deleteOldLatestRecipes()
-        upsertAllFullRecipes(recipes)
+    suspend fun clearAll() = withContext(dispatcher) { q.clearFullRecipes() }
+
+    suspend fun refreshLatest(recipes: List<FullRecipeEntity>) = withContext(dispatcher) {
+        db.transaction {
+            q.deleteOldLatestRecipes()
+            recipes.forEach { q.insertFullRecipe(it.toRow()) }
+        }
     }
 }

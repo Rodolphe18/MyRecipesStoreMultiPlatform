@@ -3,8 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.ksp)
-    alias(libs.plugins.room)
+    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -18,14 +17,15 @@ kotlin {
         }
     }
 
+    iosX64()
+    iosArm64()
+    iosSimulatorArm64()
+
     sourceSets {
         commonMain.dependencies {
-            api(projects.core.model)
-            api(projects.core.common)
-            api(projects.core.network)
-            implementation(libs.room.runtime)
+            implementation(libs.sqldelight.runtime)
+            implementation(libs.sqldelight.coroutines)
             implementation(libs.kotlinx.coroutines.core)
-            implementation(libs.kotlinx.datetime)
             api(libs.koin.core)
         }
         commonTest.dependencies {
@@ -33,17 +33,20 @@ kotlin {
         }
         androidMain.dependencies {
             implementation(libs.koin.android)
-            implementation(libs.sqlite.bundled)
+            implementation(libs.sqldelight.android.driver)
+        }
+        iosMain.dependencies {
+            implementation(libs.sqldelight.native.driver)
         }
     }
 }
 
-room {
-    schemaDirectory("$projectDir/schemas")
-}
-
-dependencies {
-    add("kspAndroid", libs.room.compiler)
+sqldelight {
+    databases {
+        create("FoodDb") {
+            packageName.set("com.francotte.database.sql")
+        }
+    }
 }
 
 android {

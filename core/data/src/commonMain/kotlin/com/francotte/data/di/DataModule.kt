@@ -45,7 +45,7 @@ val dataModule = module {
         OfflineFirstIngredientsAndAreasRepositoryImpl(get(), get(), get(), get(), get())
     }
     single<SearchContentsRepository> {
-        DefaultSearchContentsRepository(get(), get(), get(), get(), get(), get(), get(), get())
+        DefaultSearchContentsRepository(get(), get(), get(), get())
     }
 
     single {

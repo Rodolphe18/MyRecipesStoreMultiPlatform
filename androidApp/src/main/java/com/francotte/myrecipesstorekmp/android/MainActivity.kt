@@ -49,7 +49,7 @@ private fun SmokeTestView(repository: CategoriesRepository) {
         status = runCatching {
             repository.refreshAllMealCategories(force = true)
             val categories = repository.observeAllMealCategories().first()
-            "Loaded ${categories.size} categories (network + Room)"
+            "Loaded ${categories.size} categories (network + SQLDelight)"
         }.getOrElse { "Failed: ${it.message}" }
     }
 

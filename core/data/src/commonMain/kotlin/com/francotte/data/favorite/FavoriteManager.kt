@@ -24,7 +24,7 @@ sealed interface ToggleFavoriteResult {
 }
 
 class FavoriteManager(
-    private val coroutineScope: CoroutineScope,
+    coroutineScope: CoroutineScope,
     private val api: FavoriteApi,
     private val networkMonitor: NetworkMonitor,
     private val foodPreferencesDataSource: UserDataRepository,
