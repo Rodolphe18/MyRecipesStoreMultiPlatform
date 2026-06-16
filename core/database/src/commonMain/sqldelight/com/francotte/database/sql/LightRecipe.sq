@@ -1,0 +1,26 @@
+CREATE TABLE light_recipe_entity (
+    idMeal TEXT NOT NULL PRIMARY KEY,
+    strMeal TEXT NOT NULL,
+    strMealThumb TEXT NOT NULL
+);
+
+insertLightRecipe:
+INSERT OR REPLACE INTO light_recipe_entity(idMeal, strMeal, strMealThumb) VALUES (?, ?, ?);
+
+getLightRecipeById:
+SELECT * FROM light_recipe_entity WHERE idMeal = ?;
+
+getAllLightRecipes:
+SELECT * FROM light_recipe_entity;
+
+selectByIds:
+SELECT * FROM light_recipe_entity WHERE idMeal IN ?;
+
+clearLightRecipes:
+DELETE FROM light_recipe_entity;
+
+searchRecipesByName:
+SELECT * FROM light_recipe_entity WHERE strMeal LIKE '%' || :query || '%' LIMIT :limit;
+
+countLightRecipes:
+SELECT COUNT(*) FROM light_recipe_entity;

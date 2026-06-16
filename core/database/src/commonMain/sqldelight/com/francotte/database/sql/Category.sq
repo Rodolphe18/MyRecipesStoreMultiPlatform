@@ -1,0 +1,50 @@
+CREATE TABLE light_category_entity (
+    strCategory TEXT NOT NULL PRIMARY KEY
+);
+
+CREATE TABLE full_category_entity (
+    idCategory TEXT NOT NULL PRIMARY KEY,
+    strCategory TEXT NOT NULL,
+    strCategoryThumb TEXT NOT NULL,
+    strCategoryDescription TEXT NOT NULL,
+    savedTimestamp INTEGER
+);
+
+-- light category
+insertLightCategoryReplace:
+INSERT OR REPLACE INTO light_category_entity(strCategory) VALUES (?);
+
+insertLightCategoryIgnore:
+INSERT OR IGNORE INTO light_category_entity(strCategory) VALUES (?);
+
+getAllLightCategories:
+SELECT * FROM light_category_entity;
+
+getLightCategoryByName:
+SELECT * FROM light_category_entity WHERE strCategory = ?;
+
+clearLightCategories:
+DELETE FROM light_category_entity;
+
+-- full category
+insertFullCategory:
+INSERT OR REPLACE INTO full_category_entity(idCategory, strCategory, strCategoryThumb, strCategoryDescription, savedTimestamp)
+VALUES (?, ?, ?, ?, ?);
+
+getAllCategories:
+SELECT * FROM full_category_entity;
+
+getAllCategoriesOnce:
+SELECT * FROM full_category_entity;
+
+getFullCategoryByName:
+SELECT * FROM full_category_entity WHERE strCategory = ?;
+
+getLastUpdateForCategories:
+SELECT MAX(savedTimestamp) AS lastUpdated FROM full_category_entity;
+
+clearFullCategories:
+DELETE FROM full_category_entity;
+
+searchCategoryNames:
+SELECT strCategory FROM full_category_entity WHERE strCategory LIKE '%' || :query || '%' LIMIT :limit;

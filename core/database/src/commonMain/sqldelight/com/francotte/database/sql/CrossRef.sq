@@ -1,0 +1,68 @@
+CREATE TABLE recipe_area_xref (
+    strArea TEXT NOT NULL,
+    idMeal TEXT NOT NULL,
+    savedTimestamp INTEGER NOT NULL,
+    PRIMARY KEY (strArea, idMeal)
+);
+CREATE INDEX index_recipe_area_xref_idMeal ON recipe_area_xref(idMeal);
+
+CREATE TABLE recipe_category_xref (
+    strCategory TEXT NOT NULL,
+    idMeal TEXT NOT NULL,
+    savedTimestamp INTEGER NOT NULL,
+    PRIMARY KEY (strCategory, idMeal)
+);
+CREATE INDEX index_recipe_category_xref_idMeal ON recipe_category_xref(idMeal);
+
+CREATE TABLE recipe_ingredient_xref (
+    ingredientName TEXT NOT NULL,
+    idMeal TEXT NOT NULL,
+    savedTimestamp INTEGER NOT NULL,
+    PRIMARY KEY (ingredientName, idMeal)
+);
+CREATE INDEX index_recipe_ingredient_xref_idMeal ON recipe_ingredient_xref(idMeal);
+
+-- AREA
+upsertAreaRef:
+INSERT OR REPLACE INTO recipe_area_xref(strArea, idMeal, savedTimestamp) VALUES (?, ?, ?);
+
+clearAreaRefs:
+DELETE FROM recipe_area_xref WHERE strArea = ?;
+
+getLastUpdatedForArea:
+SELECT MAX(savedTimestamp) AS lastUpdated FROM recipe_area_xref WHERE strArea = ?;
+
+recipesForArea:
+SELECT lr.* FROM light_recipe_entity lr
+JOIN recipe_area_xref x ON lr.idMeal = x.idMeal
+WHERE x.strArea = ?;
+
+-- CATEGORY
+upsertCategoryRef:
+INSERT OR REPLACE INTO recipe_category_xref(strCategory, idMeal, savedTimestamp) VALUES (?, ?, ?);
+
+clearCategoryRefs:
+DELETE FROM recipe_category_xref WHERE strCategory = ?;
+
+getLastUpdatedForCategory:
+SELECT MAX(savedTimestamp) AS lastUpdated FROM recipe_category_xref WHERE strCategory = ?;
+
+recipesForCategory:
+SELECT lr.* FROM light_recipe_entity lr
+JOIN recipe_category_xref x ON lr.idMeal = x.idMeal
+WHERE x.strCategory = ?;
+
+-- INGREDIENT
+upsertIngredientRef:
+INSERT OR REPLACE INTO recipe_ingredient_xref(ingredientName, idMeal, savedTimestamp) VALUES (?, ?, ?);
+
+clearIngredientRefs:
+DELETE FROM recipe_ingredient_xref WHERE ingredientName = ?;
+
+getLastUpdatedForIngredientRecipes:
+SELECT MAX(savedTimestamp) AS lastUpdated FROM recipe_ingredient_xref WHERE ingredientName = ?;
+
+recipesForIngredient:
+SELECT lr.* FROM light_recipe_entity lr
+JOIN recipe_ingredient_xref x ON lr.idMeal = x.idMeal
+WHERE x.ingredientName = ?;

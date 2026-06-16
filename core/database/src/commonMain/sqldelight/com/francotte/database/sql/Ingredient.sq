@@ -1,0 +1,27 @@
+CREATE TABLE ingredient (
+    name TEXT NOT NULL PRIMARY KEY,
+    description TEXT NOT NULL,
+    imageUrl TEXT NOT NULL,
+    savedTimeStamp INTEGER
+);
+
+insertIngredient:
+INSERT OR IGNORE INTO ingredient(name, description, imageUrl, savedTimeStamp) VALUES (?, ?, ?, ?);
+
+getLastUpdatedForIngredients:
+SELECT MAX(savedTimeStamp) AS lastUpdated FROM ingredient;
+
+observeIngredients:
+SELECT * FROM ingredient;
+
+getAllIngredientsOnce:
+SELECT * FROM ingredient;
+
+deleteIngredientByName:
+DELETE FROM ingredient WHERE name = ?;
+
+searchIngredientNames:
+SELECT name FROM ingredient WHERE name LIKE '%' || :query || '%' LIMIT :limit;
+
+changes:
+SELECT changes();

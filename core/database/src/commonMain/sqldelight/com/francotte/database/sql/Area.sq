@@ -1,0 +1,16 @@
+CREATE TABLE area (
+    strArea TEXT NOT NULL PRIMARY KEY,
+    savedTimeStamp INTEGER
+);
+
+insertArea:
+INSERT OR IGNORE INTO area(strArea, savedTimeStamp) VALUES (?, ?);
+
+getAllAreasOnce:
+SELECT * FROM area;
+
+observeAllAreas:
+SELECT * FROM area;
+
+searchAreaNames:
+SELECT strArea FROM area WHERE strArea LIKE '%' || :query || '%' LIMIT :limit;

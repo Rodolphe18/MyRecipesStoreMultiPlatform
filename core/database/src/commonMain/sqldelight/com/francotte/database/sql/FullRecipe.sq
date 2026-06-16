@@ -1,0 +1,59 @@
+CREATE TABLE full_recipe_entity (
+    idMeal TEXT NOT NULL PRIMARY KEY,
+    strMeal TEXT NOT NULL,
+    strMealAlternate TEXT,
+    strCategory TEXT NOT NULL,
+    strArea TEXT NOT NULL,
+    isFavorite INTEGER NOT NULL DEFAULT 0,
+    strInstructions TEXT,
+    strMealThumb TEXT NOT NULL,
+    strTags TEXT,
+    strYoutube TEXT NOT NULL,
+    strIngredient1 TEXT, strIngredient2 TEXT, strIngredient3 TEXT, strIngredient4 TEXT, strIngredient5 TEXT,
+    strIngredient6 TEXT, strIngredient7 TEXT, strIngredient8 TEXT, strIngredient9 TEXT, strIngredient10 TEXT,
+    strIngredient11 TEXT, strIngredient12 TEXT, strIngredient13 TEXT, strIngredient14 TEXT, strIngredient15 TEXT,
+    strIngredient16 TEXT, strIngredient17 TEXT, strIngredient18 TEXT, strIngredient19 TEXT, strIngredient20 TEXT,
+    strMeasure1 TEXT, strMeasure2 TEXT, strMeasure3 TEXT, strMeasure4 TEXT, strMeasure5 TEXT,
+    strMeasure6 TEXT, strMeasure7 TEXT, strMeasure8 TEXT, strMeasure9 TEXT, strMeasure10 TEXT,
+    strMeasure11 TEXT, strMeasure12 TEXT, strMeasure13 TEXT, strMeasure14 TEXT, strMeasure15 TEXT,
+    strMeasure16 TEXT, strMeasure17 TEXT, strMeasure18 TEXT, strMeasure19 TEXT, strMeasure20 TEXT,
+    strSource TEXT,
+    strImageSource TEXT,
+    strCreativeCommonsConfirmed TEXT,
+    dateModified TEXT,
+    savedTimestamp INTEGER,
+    isLatest INTEGER NOT NULL DEFAULT 0
+);
+
+insertFullRecipe:
+INSERT OR REPLACE INTO full_recipe_entity VALUES ?;
+
+getAllFullRecipes:
+SELECT * FROM full_recipe_entity;
+
+getLatestFullRecipes:
+SELECT * FROM full_recipe_entity WHERE isLatest = 1;
+
+getAllFavoritesFullRecipes:
+SELECT * FROM full_recipe_entity WHERE isFavorite = 1;
+
+getFullRecipeById:
+SELECT * FROM full_recipe_entity WHERE idMeal = ?;
+
+getExistingIds:
+SELECT idMeal FROM full_recipe_entity WHERE idMeal IN ?;
+
+selectByIds:
+SELECT * FROM full_recipe_entity WHERE idMeal IN ?;
+
+getLastUpdatedForLatest:
+SELECT MAX(savedTimestamp) AS lastUpdated FROM full_recipe_entity WHERE isLatest = 1;
+
+deleteOldLatestRecipes:
+DELETE FROM full_recipe_entity WHERE isLatest = 1;
+
+deleteAllFavoritesRecipes:
+DELETE FROM full_recipe_entity WHERE isFavorite = 1;
+
+clearFullRecipes:
+DELETE FROM full_recipe_entity;

@@ -1,0 +1,22 @@
+CREATE TABLE search_index_category_state (
+    strCategory TEXT NOT NULL PRIMARY KEY,
+    lastIndexedAt INTEGER
+);
+CREATE INDEX index_search_index_category_state_lastIndexedAt ON search_index_category_state(lastIndexedAt);
+
+getCategoriesToIndex:
+SELECT c.strCategory
+FROM full_category_entity c
+LEFT JOIN search_index_category_state s ON s.strCategory = c.strCategory
+WHERE s.lastIndexedAt IS NULL OR s.lastIndexedAt < :staleBefore
+ORDER BY COALESCE(s.lastIndexedAt, 0) ASC, c.strCategory ASC
+LIMIT :limit;
+
+getRemainingToIndexCount:
+SELECT COUNT(*)
+FROM full_category_entity c
+LEFT JOIN search_index_category_state s ON s.strCategory = c.strCategory
+WHERE s.lastIndexedAt IS NULL OR s.lastIndexedAt < :staleBefore;
+
+upsertState:
+INSERT OR REPLACE INTO search_index_category_state(strCategory, lastIndexedAt) VALUES (?, ?);
