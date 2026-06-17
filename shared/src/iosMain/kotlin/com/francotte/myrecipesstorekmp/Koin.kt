@@ -12,6 +12,8 @@ import com.francotte.datastore.di.iosDatastoreModule
 import com.francotte.domain.di.domainModule
 import com.francotte.network.di.iosNetworkModule
 import com.francotte.network.di.networkModule
+import com.francotte.ui.HomeSyncScheduler
+import com.francotte.ui.di.homeSyncModule
 import org.koin.core.context.startKoin
 
 /**
@@ -36,6 +38,27 @@ fun initKoin() {
             domainModule,
             authModule,
             iosAuthModule,
+            homeSyncModule,
         )
     }
 }
+
+private val homeSyncScheduler = HomeSyncScheduler()
+
+/**
+ * Home sync triggers exposed to Swift (the `shared` framework's public surface).
+ *
+ * Recommended Swift wiring in `application(_:didFinishLaunchingWithOptions:)`:
+ * ```swift
+ * KoinKt.doInitKoin()
+ * KoinKt.registerHomeSync()   // must run before launch returns
+ * KoinKt.runHomeSyncNow()     // immediate foreground populate
+ * KoinKt.scheduleHomeSync()   // opportunistic background refresh
+ * ```
+ * Also add [HomeSyncScheduler.TASK_ID] to `BGTaskSchedulerPermittedIdentifiers` in Info.plist.
+ */
+fun registerHomeSync() = homeSyncScheduler.register()
+
+fun runHomeSyncNow() = homeSyncScheduler.runNow()
+
+fun scheduleHomeSync() = homeSyncScheduler.schedule()

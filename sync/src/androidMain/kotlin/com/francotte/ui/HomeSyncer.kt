@@ -9,8 +9,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.francotte.data.interfaces.HomeRepository
-import com.francotte.data.interfaces.UserHomeRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.concurrent.TimeUnit
@@ -20,17 +18,11 @@ class HomeSyncWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(ctx, params), KoinComponent {
 
-    private val homeRepository: HomeRepository by inject()
-    private val userHomeRepository: UserHomeRepository by inject()
+    private val homeSyncer: HomeSyncer by inject()
 
     override suspend fun doWork(): Result =
         try {
-            homeRepository.refreshLatestRecipes(force = false)
-            userHomeRepository.apply {
-                refreshMultipleFoodAreaSection(force = false)
-                refreshSpecificFoodAreaSection("Japanese", false)
-                refreshSpecificFoodAreaSection("British", false)
-            }
+            homeSyncer.sync()
             Result.success()
         } catch (t: Throwable) {
             val maxAttempts = 3

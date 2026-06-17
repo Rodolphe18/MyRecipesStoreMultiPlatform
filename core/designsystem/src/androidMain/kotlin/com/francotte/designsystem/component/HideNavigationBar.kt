@@ -12,7 +12,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
-fun HideNavigationBar() {
+actual fun HideNavigationBar() {
     val window = LocalActivity.current?.window ?: return
     val view = LocalView.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
