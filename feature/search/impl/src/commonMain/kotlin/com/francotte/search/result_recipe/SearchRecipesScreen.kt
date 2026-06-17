@@ -1,0 +1,141 @@
+package com.francotte.search.result_recipe
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.francotte.designsystem.component.CustomCircularProgressIndicator
+import com.francotte.designsystem.component.TopAppBar
+import com.francotte.designsystem.theme.LightYellow
+import com.francotte.search.resources.Res
+import com.francotte.search.resources.empty_recipes_screen
+import com.francotte.search.resources.think
+import com.francotte.ui.RecipeItem
+import com.francotte.ui.SectionErrorScreen
+import com.francotte.ui.TrackScrollJank
+import com.francotte.ui.nbSectionColumns
+import com.francotte.ui.rememberDeviceMode
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchRecipesScreen(
+    state: SearchRecipesState,
+    onAction: (SearchRecipesAction) -> Unit,
+) {
+    val mode = rememberDeviceMode()
+    val topAppBarScrollBehavior =
+        TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    Scaffold(
+        modifier = Modifier.nestedScroll(topAppBarScrollBehavior.nestedScrollConnection),
+        topBar = {
+            TopAppBar(
+                title = state.title,
+                navigationIconEnabled = true,
+                onNavigationClick = { onAction(SearchRecipesAction.OnBackClick) },
+                scrollBehavior = topAppBarScrollBehavior,
+            )
+        },
+    ) { padding ->
+        when {
+            state.isLoading -> CustomCircularProgressIndicator()
+            state.isError -> SectionErrorScreen { onAction(SearchRecipesAction.OnReload) }
+            state.recipes.isEmpty() -> EmptyRecipesScreen(onBack = { onAction(SearchRecipesAction.OnBackClick) })
+            else -> {
+                val listState = rememberLazyGridState()
+                TrackScrollJank(scrollableState = listState, stateName = "search:grid")
+                LazyVerticalGrid(
+                    state = listState,
+                    columns = GridCells.Fixed(mode.nbSectionColumns),
+                    reverseLayout = false,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    flingBehavior = ScrollableDefaults.flingBehavior(),
+                    contentPadding = PaddingValues(
+                        top = padding.calculateTopPadding(),
+                        bottom = 16.dp,
+                        start = 16.dp,
+                        end = 16.dp,
+                    ),
+                ) {
+                    itemsIndexed(
+                        items = state.recipes,
+                        key = { index, likeableRecipe -> likeableRecipe.recipe.idMeal + index },
+                    ) { index, likeableRecipe ->
+                        RecipeItem(
+                            likeableRecipe = likeableRecipe,
+                            onToggleFavorite = { onAction(SearchRecipesAction.OnToggleFavorite(it)) },
+                            onOpenRecipe = { onAction(SearchRecipesAction.OnRecipeClick(index)) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyRecipesScreen(onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(LightYellow.copy(0.2f)),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.think),
+            contentDescription = null,
+            modifier = Modifier.size(200.dp),
+        )
+        Spacer(Modifier.height(30.dp))
+        Text(
+            text = stringResource(Res.string.empty_recipes_screen),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            color = Color.Gray,
+            lineHeight = 36.sp,
+        )
+        Spacer(Modifier.height(40.dp))
+        Box(
+            modifier = Modifier
+                .height(60.dp)
+                .width(240.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFFFFA000))
+                .clickable { onBack() },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Go back", color = Color.White, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
