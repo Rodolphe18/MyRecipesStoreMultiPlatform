@@ -1,0 +1,154 @@
+package com.francotte.categories
+
+import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.francotte.designsystem.component.CustomCircularProgressIndicator
+import com.francotte.designsystem.component.DesignAsyncImage
+import com.francotte.ui.BannerAd
+import com.francotte.ui.BannerPlacement
+import com.francotte.ui.DeviceMode
+import com.francotte.ui.SectionErrorScreen
+import com.francotte.ui.nbCategoriesColumns
+import com.francotte.ui.rememberDeviceMode
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoriesScreen(
+    state: CategoriesState,
+    onAction: (CategoriesAction) -> Unit,
+) {
+    val mode = rememberDeviceMode()
+    val lazyListState = rememberLazyGridState()
+    val spanSize = GridItemSpan(mode.nbCategoriesColumns)
+    val pullToRefreshState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = state.isRefreshing,
+        onRefresh = { onAction(CategoriesAction.OnRefresh) },
+        state = pullToRefreshState,
+    ) {
+        when {
+            state.isLoading -> CustomCircularProgressIndicator()
+            state.isEmpty -> SectionErrorScreen { onAction(CategoriesAction.OnRefresh) }
+            else -> {
+                LazyVerticalGrid(
+                    state = lazyListState,
+                    columns = GridCells.Fixed(mode.nbCategoriesColumns),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                ) {
+                    if (mode != DeviceMode.PhoneLandscape) {
+                        item(key = "banner_top", contentType = "ad", span = { spanSize }) {
+                            Box(
+                                modifier = Modifier.layout { measurable, constraints ->
+                                    val placeable = measurable.measure(
+                                        constraints.copy(maxWidth = constraints.maxWidth + 32.dp.roundToPx()),
+                                    )
+                                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                                },
+                            ) {
+                                BannerAd(placement = BannerPlacement.FOOD_LIST, horizontalPadding = 16.dp)
+                            }
+                        }
+                    }
+                    items(
+                        key = { it.strCategory },
+                        contentType = { "categories" },
+                        items = state.categories,
+                    ) { category ->
+                        CategoryItem(
+                            imageUrl = category.strCategoryThumb,
+                            title = category.strCategory,
+                        ) {
+                            onAction(CategoriesAction.OnCategoryClick(category))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryItem(
+    imageUrl: String,
+    title: String,
+    onClick: () -> Unit,
+) {
+    Column {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.8f)
+                .clip(RoundedCornerShape(20.dp))
+                .clickable { onClick() }
+                .animateContentSize(),
+        ) {
+            GradientBackGround(Modifier.fillMaxSize())
+            DesignAsyncImage(
+                model = imageUrl,
+                contentDescription = title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        CategoryMetaData(modifier = Modifier.align(Alignment.CenterHorizontally), title = title)
+    }
+}
+
+@Composable
+private fun CategoryMetaData(
+    modifier: Modifier = Modifier,
+    title: String,
+) {
+    Text(
+        modifier = modifier,
+        text = title,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+}
+
+@Composable
+private fun GradientBackGround(modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize()) {
+        Box(
+            modifier
+                .fillMaxSize()
+                .background(color = Color.LightGray.copy(alpha = 0.1f)),
+        )
+    }
+}
