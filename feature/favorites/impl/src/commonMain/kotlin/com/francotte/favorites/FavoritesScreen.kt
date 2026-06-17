@@ -1,0 +1,219 @@
+package com.francotte.favorites
+
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.ScrollableDefaults
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.francotte.designsystem.component.CustomCircularProgressIndicator
+import com.francotte.favorites.resources.Res
+import com.francotte.favorites.resources.add_favorites_recipes
+import com.francotte.favorites.resources.recipe
+import com.francotte.ui.RecipeItem
+import com.francotte.ui.SectionErrorScreen
+import com.francotte.ui.SectionTitle
+import com.francotte.ui.TrackScrollJank
+import com.francotte.ui.nbSectionColumns
+import com.francotte.ui.nbSectionFavorites
+import com.francotte.ui.rememberDeviceMode
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FavoritesScreen(
+    state: FavoritesState,
+    onAction: (FavoritesAction) -> Unit,
+) {
+    val mode = rememberDeviceMode()
+    val lazyGridState = rememberLazyGridState()
+    val focusManager = LocalFocusManager.current
+    val pullRefreshState = rememberPullToRefreshState()
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(state.searchText) {
+        if (state.searchText.isEmpty()) {
+            delay(3000)
+            focusManager.clearFocus()
+        }
+    }
+    Column {
+        OutlinedTextField(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 16.dp),
+            value = state.searchText,
+            onValueChange = { onAction(FavoritesAction.OnSearchChange(it)) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "leading icon",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+            },
+            placeholder = { Text(text = "Favorites Search") },
+            textStyle = TextStyle(fontSize = 14.sp),
+            shape = RoundedCornerShape(12.dp),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            colors = OutlinedTextFieldDefaults.colors(),
+        )
+
+        when (val content = state.content) {
+            FavoriteUiState.Loading -> CustomCircularProgressIndicator()
+            FavoriteUiState.Error -> SectionErrorScreen { onAction(FavoritesAction.OnReload) }
+            is FavoriteUiState.Success -> {
+                LaunchedEffect(content.favoritesRecipes.isEmpty()) {
+                    if (content.favoritesRecipes.isEmpty()) {
+                        onAction(FavoritesAction.OnReload)
+                    }
+                }
+                if (content.favoritesRecipes.isEmpty() && content.customRecipes.isEmpty()) {
+                    AnimatedCookbookScreen()
+                } else {
+                    PullToRefreshBox(
+                        modifier = Modifier.fillMaxSize(),
+                        isRefreshing = state.isReloading,
+                        onRefresh = {
+                            coroutineScope.launch {
+                                onAction(FavoritesAction.OnReload)
+                                pullRefreshState.animateToHidden()
+                            }
+                        },
+                        state = pullRefreshState,
+                    ) {
+                        TrackScrollJank(scrollableState = lazyGridState, stateName = "favorites:grid")
+                        LazyVerticalGrid(
+                            state = lazyGridState,
+                            columns = GridCells.Fixed(mode.nbSectionFavorites),
+                            reverseLayout = false,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            flingBehavior = ScrollableDefaults.flingBehavior(),
+                            contentPadding = PaddingValues(all = 16.dp),
+                        ) {
+                            val likeableRecipes = content.favoritesRecipes
+                            val customRecipes = content.customRecipes
+                            if (customRecipes.isNotEmpty()) {
+                                item(span = { GridItemSpan(mode.nbSectionFavorites) }) {
+                                    CustomRecipesSection(
+                                        Modifier.layout { measurable, constraints ->
+                                            val placeable = measurable.measure(
+                                                constraints.copy(maxWidth = constraints.maxWidth + 32.dp.roundToPx()),
+                                            )
+                                            layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                                        },
+                                        customRecipes,
+                                        { onAction(FavoritesAction.OnCustomRecipeClick(it)) },
+                                    )
+                                }
+                                item(span = { GridItemSpan(mode.nbSectionColumns) }) {
+                                    SectionTitle(
+                                        title = "Favorites",
+                                        showNavIcon = false,
+                                        count = likeableRecipes.size,
+                                        paddingStart = 4.dp,
+                                    )
+                                }
+                            }
+                            itemsIndexed(
+                                items = likeableRecipes,
+                                key = { index, likeableRecipe -> likeableRecipe.recipe.idMeal + index },
+                            ) { index, likeableRecipe ->
+                                RecipeItem(
+                                    likeableRecipe = likeableRecipe,
+                                    onToggleFavorite = { onAction(FavoritesAction.OnToggleFavorite(it)) },
+                                    onOpenRecipe = { onAction(FavoritesAction.OnRecipeClick(index)) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedCookbookScreen() {
+    val offsetY = remember { Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        offsetY.animateTo(targetValue = -20f, animationSpec = tween(durationMillis = 600))
+        offsetY.animateTo(
+            targetValue = 0f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow,
+            ),
+        )
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.recipe),
+            contentDescription = "Cookbook image",
+            modifier = Modifier
+                .offset(y = offsetY.value.dp)
+                .size(200.dp),
+            contentScale = ContentScale.None,
+        )
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(Res.string.add_favorites_recipes),
+            fontSize = 32.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center,
+            color = Color.DarkGray,
+            lineHeight = 36.sp,
+        )
+    }
+}
