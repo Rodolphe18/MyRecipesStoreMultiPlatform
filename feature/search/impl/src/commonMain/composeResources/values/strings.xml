@@ -1,0 +1,6 @@
+<resources>
+    <string name="empty_recipes_screen">No recipes found !\nTry different ingredients and \ncook up something new ! 🍲🧑‍🍳</string>
+    <string name="search_recipes_question">How would you like to \n search recipes ?</string>
+    <string name="by_ingredients">By ingredients</string>
+    <string name="by_country">By country</string>
+</resources>
